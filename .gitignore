@@ -10,3 +10,8 @@ logs/
 .vscode/
 *.egg-info/
 .DS_Store
+configs/tmp_*.yaml
+tmp_*.yaml
+tmp_*.py
+tmp_*.log
+changes.patch
