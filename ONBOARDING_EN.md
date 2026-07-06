@@ -1,5 +1,17 @@
 # XAI Mini Project — Onboarding Guide for New Members
 
+> **⚠️ Historical document — does not reflect the current codebase.** This was written during an
+> earlier phase of the project that also explored the MUTAG dataset and a feature scheme called
+> `rdf_types`. The final repository is **AIFB-only** (see `README.md`) and the shipped feature scheme
+> is `rdf_neighborhood` — a superset of `rdf_types` that additionally includes typed-neighbourhood
+> (`exists::<pred>::<ObjectType>`) features (see `README.md`'s "Pipeline Walkthrough" and the report for
+> the current, accurate description). `configs/mutag.yaml` and `configs/mutag_node_id.yaml` are dead
+> leftovers from that phase: `data/mutag/` no longer exists in this repo, and `initial_features:
+> rdf_types` is no longer a value the code accepts (`train.py` only accepts `node_id` or
+> `rdf_neighborhood`). Kept here for historical context on why `rdf_neighborhood` was chosen over
+> per-node ID embeddings — treat `README.md` and the report as the source of truth for anything that
+> conflicts with what's below.
+
 > : This document follows the chronological order of problem discovery → solution design. It covers project background, datasets, system architecture, the core innovation, and the exact code changes made. 
 
 ---
@@ -567,16 +579,12 @@ Both approaches coexist through a config toggle. The conditional branches total 
 ```bash
 # 1. Environment
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt   # includes Ontolearn/CELOE
 pip install -e .
 
-# 2. (Optional) Install Ontolearn
-pip install -r requirements-ontolearn.txt
-pip install --no-deps ontolearn==0.10.0
+# 2. Download MUTAG data into data/mutag/ directory
 
-# 3. Download MUTAG data into data/mutag/ directory
-
-# 4. Run experiments
+# 3. Run experiments
 # AIFB + node_id (original approach)
 xai-mini --config configs/aifb.yaml run-all
 

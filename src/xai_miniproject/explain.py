@@ -159,10 +159,9 @@ def run_ontolearn(config: Config, ontology_path: Path, problem: LearningProblem)
         learner_kwargs["max_runtime_seconds"] = config.explanation.max_runtime_seconds
     model = learner_class(**learner_kwargs)
 
-    learning_problem = PosNegLPStandard(
-        pos={OWLNamedIndividual(uri) for uri in problem.positive_examples},
-        neg={OWLNamedIndividual(uri) for uri in problem.negative_examples},
-    )
+    positive_individuals = {OWLNamedIndividual(uri) for uri in problem.positive_examples}
+    negative_individuals = {OWLNamedIndividual(uri) for uri in problem.negative_examples}
+    learning_problem = PosNegLPStandard(pos=positive_individuals, neg=negative_individuals)
     fitted = model.fit(learning_problem=learning_problem)
     hypothesis_source = fitted if hasattr(fitted, "best_hypotheses") else model
     hypotheses = _best_hypotheses(hypothesis_source, config.explanation.top_k)
@@ -171,10 +170,20 @@ def run_ontolearn(config: Config, ontology_path: Path, problem: LearningProblem)
     for hypothesis in hypotheses:
         concept = getattr(hypothesis, "concept", hypothesis)
         quality = getattr(hypothesis, "quality", None)
+        covered = set(kb.individuals(concept))
+        tp = len(covered & positive_individuals)
+        fp = len(covered & negative_individuals)
+        precision = tp / (tp + fp) if (tp + fp) else 0.0
+        recall = tp / len(positive_individuals) if positive_individuals else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
         results.append(
             {
                 "concept": renderer(concept),
-                "quality": float(quality) if quality is not None else None,
+                "quality": float(quality) if quality is not None else f1,
+                "precision": precision,
+                "recall": recall,
+                "covered_positive": tp,
+                "covered_negative": fp,
                 "raw": str(concept),
             }
         )
@@ -189,7 +198,7 @@ def _load_ontolearn_symbols(learner_name: str):
     except ImportError as exc:
         raise ImportError(
             "Ontolearn is not installed. Install it with "
-            "`python -m pip install -r requirements-ontolearn.txt`."
+            "`python -m pip install -r requirements.txt`."
         ) from exc
 
     try:
@@ -235,10 +244,16 @@ def _load_renderer():
 
 def _best_hypotheses(model, top_k: int):
     method = model.best_hypotheses
+    kwargs: dict[str, Any] = {}
     try:
-        result = method(top_k)
+        if "return_node" in inspect.signature(method).parameters:
+            kwargs["return_node"] = True
+    except (TypeError, ValueError):
+        pass
+    try:
+        result = method(top_k, **kwargs)
     except TypeError:
-        result = method()
+        result = method(**kwargs) if kwargs else method()
     if isinstance(result, list):
         return result[:top_k]
     if isinstance(result, tuple):

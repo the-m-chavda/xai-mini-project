@@ -14,6 +14,30 @@ The final report uses two AIFB experiments only:
 | AIFB best model | `configs/aifb.yaml` | RDF-neighborhood features, residual 2-layer R-GCN, early stopping |
 | AIFB baseline | `configs/aifb_baseline.yaml` | node-id embeddings, original simpler R-GCN baseline |
 
+## Dataset
+
+This project uses the **AIFB** RDF knowledge graph, the standard benchmark introduced by
+Bloehdorn & Sure (2007) and used for RDF node classification in Schlichtkrull et al. (2018). It
+describes persons and their publications at the AIFB research institute (University of Karlsruhe);
+the task is to predict each person's research group affiliation (see the report for full dataset
+analysis and statistics).
+
+- Original source: <https://figshare.com/articles/dataset/AIFB_DataSet/745364/1>
+- Also available pre-packaged as: <https://data.dgl.ai/dataset/rdf/aifb-hetero.zip>
+
+The dataset is already included in this repository under `data/aifb/` — **no download step is
+needed** to reproduce the report's results:
+
+| File | Description |
+| --- | --- |
+| `aifbfixed_complete.n3` | Full RDF knowledge graph (29,226 triples) |
+| `trainingSet.tsv` | 140 labelled persons |
+| `testSet.tsv` | 36 labelled persons |
+| `completeDataset.tsv` | All 176 labelled persons |
+
+To use a fresh copy instead of the bundled files, download the archive above, extract it into
+`data/aifb/`, and keep the same four filenames referenced by `configs/aifb.yaml`.
+
 ## Repository Layout
 
 ```text
@@ -23,9 +47,19 @@ configs/
 data/aifb/                # AIFB RDF graph and label splits
 src/xai_miniproject/      # package source code
 tests/                    # lightweight regression tests
-requirements.txt          # core dependencies
-requirements-ontolearn.txt # optional CELOE dependencies
+requirements.txt          # all dependencies, including Ontolearn/CELOE
 ```
+
+Responsibility of each module in `src/xai_miniproject/`:
+
+| File | Responsibility |
+| --- | --- |
+| `config.py` | YAML config → immutable dataclass, controls all pipeline behaviour |
+| `data.py` | RDF parsing, graph construction, RDF-neighbourhood feature extraction |
+| `model.py` | R-GCN classifier: relational message passing + linear classifier head |
+| `train.py` | Training loop, validation split, early stopping, evaluation |
+| `explain.py` | Converts GNN predictions to learning problems, runs CELOE (or the baseline fallback) |
+| `cli.py` | CLI entry point (`xai-mini analyze / train / explain / run-all`) |
 
 Generated outputs are ignored by git and are written to:
 
@@ -49,7 +83,18 @@ explanation_results.csv
 
 ## Setup
 
-Use Python 3.10 or newer. Python 3.12 has been tested on macOS.
+Use Python 3.10 or newer (Python 3.12 has been tested on macOS; Python 3.11 has been tested on Linux).
+
+Clone the repository and run the one-command setup script, which creates the virtual environment,
+installs every dependency (including Ontolearn/CELOE), and then runs and verifies the full pipeline:
+
+```bash
+git clone git@github.com:the-m-chavda/xai-mini-project.git
+cd xai-mini-project
+bash reproduce.sh
+```
+
+If `reproduce.sh` fails on your platform, set up manually instead:
 
 ```bash
 python -m venv .venv
@@ -68,29 +113,22 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-## Optional: Install Ontolearn / CELOE
+`requirements.txt` installs everything needed, including Ontolearn/CELOE — no separate install step is
+required. The classifier can still run without it (it falls back to a simple feature-based explainer),
+but if Ontolearn fails to import, that fallback happens **silently**, so double-check the `explain` step
+logs for a line starting with `Ontolearn unavailable` before trusting a run as a real CELOE result.
 
-The classifier can be trained without Ontolearn. For the report-style symbolic explanations, install
-Ontolearn as follows:
+> **macOS arm64 only:** `ontolearn==0.10.0` pins an old `python-sat` release that can fail to build from
+> source on macOS arm64 (missing C++ headers such as `<cmath>`). If the `requirements.txt` install fails
+> on that step, work around it with `pip install python-sat>=1.8.dev0` followed by
+> `pip install --no-deps ontolearn==0.10.0`, then re-run `pip install -r requirements.txt` to pick up the
+> rest of the dependencies. See the comment in `requirements.txt` for details.
 
-```bash
-python -m pip install -r requirements-ontolearn.txt
-python -m pip install --no-deps ontolearn==0.10.0
-```
+## Quick Reproduction verification
+ 
+Once set up (via `bash reproduce.sh` or the manual steps above), here's what to expect.
 
-The two-step install avoids Ontolearn's old pinned `python-sat` dependency, which can fail to compile on
-some macOS/Python combinations. If Ontolearn is unavailable, the code falls back to a simple feature-based
-explainer so the pipeline still runs end-to-end.
-
-## Quick Reproduction
-
-**One command — runs everything and verifies results:**
-
-```bash
-bash reproduce.sh
-```
-
-Expected output (truncated):
+Expected output of `bash reproduce.sh` (truncated):
 
 ```
 === Checking Python version ===
@@ -275,28 +313,29 @@ Loads `predictions.csv` (all 176 persons, train+test). For each of the 4 researc
 > Uses **model predictions**, not ground truth — the explanation reflects what the model learned,
 > not just data patterns.
 
-### Stage 6 — Concept Learning (`explain.py:run_baseline_explainer`)
+### Stage 6 — Concept Learning (`explain.py:run_ontolearn`, falls back to `run_baseline_explainer`)
 
-For each learning problem, neighbourhood features are collected for all example entities
-(same feature strings as Stage 2). Each unique feature string is scored:
+`requirements.txt` installs Ontolearn/CELOE, so this stage runs real CELOE by default: for each learning
+problem, CELOE searches the leakage-filtered ontology for compound DL concepts (conjunctions, cardinality
+and universal restrictions, ...) that separate the positive from the negative examples, returning the
+top 3 concepts ranked by F1. Precision/recall are then computed by intersecting each concept's covered
+individuals (`kb.individuals(concept)`) with the positive/negative sets. If Ontolearn fails to import,
+the pipeline falls back to a much simpler single-RDF-feature scorer (same feature strings as Stage 2)
+and logs `Ontolearn unavailable` — check the `explain` step logs for that line before trusting a run as
+a real CELOE result.
 
-- `precision = tp / (tp + fp)`
-- `recall = tp / (tp + fn)`
-- `F1 = harmonic mean`
+**Results (real CELOE run, best hypothesis per class):**
 
-Features are sorted by (F1 desc, precision desc, recall desc) and the top 3 are returned.
-
-**Results:**
-
-| Research Group | Top feature | F1 | Precision | Recall |
+| Research Group | Top concept | F1 | Precision | Recall |
 | --- | --- | ---: | ---: | ---: |
-| Business Info | `HAS_LITERAL fax` | 0.500 | 0.333 | 1.000 |
-| Efficient Algs | `EXISTS worksAtProject.Project` | 0.493 | 0.391 | 0.667 |
-| Knowledge Mgmt | `EXISTS publication.TechnicalReport` | 0.675 | 0.675 | 0.675 |
-| Complexity Mgmt | `EXISTS⁻¹ member.ResearchGroup` | 0.462 | 0.316 | 0.857 |
+| Business Info | `∀ member⁻.(¬Project)` | 0.646 | 0.554 | 0.775 |
+| Efficient Algs | `≤ 6 publication.(¬InProceedings)` | 0.436 | 0.289 | 0.889 |
+| Knowledge Mgmt | `¬Lecturer` | 0.510 | 0.342 | 1.000 |
+| Complexity Mgmt | `≤ 5 publication.(¬InProceedings)` | 0.321 | 0.194 | 0.929 |
 
-> Ontolearn/CELOE is not installed by default — the baseline feature scorer runs for all 4 classes.
-> CELOE would search conjunctions/disjunctions rather than single features.
+> The simpler single-feature baseline scorer (used only if Ontolearn is unavailable) finds different,
+> less expressive concepts, e.g. `EXISTS publication.TechnicalReport` (F1=0.675) for Knowledge
+> Management — see the report's "Explanation Evaluation" section for the full baseline comparison.
 
 ### Full Data Flow
 
@@ -331,14 +370,14 @@ aifb.n3 ────────────────────────
        (capped: 40 pos / 80 neg)                               │
                  │                                             │
               Stage 6                                          │
-       Baseline Concept Learner                                │
-       neighbourhood_features() <──────────────────────────────┘
-       score each feature by F1
+       CELOE Concept Learner (Ontolearn)                       │
+       search compound DL concepts <────────────────────────────┘
+       score each concept by F1 (kb.individuals ∩ pos/neg)
        return top-3 per class
                  │
        explanation_results.json
-       "EXISTS publication.TechnicalReport"  → KM  F1=0.675
-       "EXISTS worksAtProject.Project"       → EA  F1=0.493
-       "HAS_LITERAL fax"                    → BI  F1=0.500
-       "EXISTS⁻¹ member.ResearchGroup"      → CM  F1=0.462
+       "∀ member⁻.(¬Project)"                → BI  F1=0.646
+       "≤ 6 publication.(¬InProceedings)"    → EA  F1=0.436
+       "¬Lecturer"                           → KM  F1=0.510
+       "≤ 5 publication.(¬InProceedings)"    → CM  F1=0.321
 ```

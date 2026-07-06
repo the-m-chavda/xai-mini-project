@@ -15,4 +15,17 @@ JPype1>=1.5.0
 parsimonious>=0.8.1
 flask>=1.1.2
 more-itertools>=10.0.0
+# ontolearn.knowledge_base and ontolearn.learners import matplotlib and
+# transformers at module load time (CELOE itself uses neither) — without them
+# `from ontolearn.learners import CELOE` raises ModuleNotFoundError and the
+# pipeline silently falls back to the baseline explainer.
+matplotlib>=3.8
+transformers>=4.38.1
 ontolearn==0.10.0
+# NOTE (macOS arm64 only): ontolearn==0.10.0 pins python-sat==0.1.7.dev23,
+# which can fail to build from source on macOS arm64 (missing C++ headers
+# such as <cmath>). If `pip install -r requirements.txt` fails on that step,
+# work around it with:
+#   pip install python-sat>=1.8.dev0
+#   pip install --no-deps ontolearn==0.10.0
+# then re-run this file's install to pick up the rest of the dependencies.
