@@ -1,0 +1,58 @@
+project:
+  name: xai26-strategy3-aifb
+  seed: 42
+  artifacts_dir: artifacts/aifb
+
+dataset:
+  name: aifb
+  rdf_path: data/aifb/aifbfixed_complete.n3
+  rdf_format: n3
+  train_path: data/aifb/trainingSet.tsv
+  test_path: data/aifb/testSet.tsv
+  all_labels_path: data/aifb/completeDataset.tsv
+  entity_column: person
+  label_column: label_affiliation
+  target_node_type: http://swrc.ontoware.org/ontology#Person
+  label_names:
+    http://www.aifb.uni-karlsruhe.de/Forschungsgruppen/viewForschungsgruppeOWL/id1instance: Business Information and Communication Systems
+    http://www.aifb.uni-karlsruhe.de/Forschungsgruppen/viewForschungsgruppeOWL/id2instance: Efficient Algorithms
+    http://www.aifb.uni-karlsruhe.de/Forschungsgruppen/viewForschungsgruppeOWL/id3instance: Knowledge Management
+    http://www.aifb.uni-karlsruhe.de/Forschungsgruppen/viewForschungsgruppeOWL/id4instance: Complexity Management
+    http://www.aifb.uni-karlsruhe.de/Forschungsgruppen/viewForschungsgruppeOWL/id5instance: Usability Engineering
+  exclude_predicates:
+    - http://swrc.ontoware.org/ontology#affiliation
+    - http://swrc.ontoware.org/ontology#employs
+  include_literal_nodes: false
+  add_inverse_edges: true
+
+model:
+  name: rgcn
+  initial_features: rdf_neighborhood
+  embedding_dim: 64
+  hidden_dim: 128
+  dropout: 0.5
+  epochs: 250
+  learning_rate: 0.005
+  weight_decay: 0.001
+  validation_fraction: 0.15
+  early_stopping_patience: 30
+  log_every: 25
+  device: auto
+  num_layers: 2
+  use_residual: true
+  use_layer_norm: true
+
+explanation:
+  learner: CELOE
+  backend: ontolearn
+  fallback_baseline: true
+  target_classes: all
+  example_source: predictions
+  example_split: all
+  max_positive_examples: 40
+  max_negative_examples: 80
+  random_seed: 42
+  max_runtime_seconds: 60
+  top_k: 3
+  ontology_output: artifacts/aifb/aifb_without_labels.owl
+  examples_output: artifacts/aifb/learning_problems.json
