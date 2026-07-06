@@ -84,7 +84,40 @@ explainer so the pipeline still runs end-to-end.
 
 ## Quick Reproduction
 
-Run the final AIFB model used in the report:
+**One command — runs everything and verifies results:**
+
+```bash
+bash reproduce.sh
+```
+
+Expected output (truncated):
+
+```
+=== Checking Python version ===
+[OK]   Python 3.x (>= 3.10)
+=== Installing dependencies ===
+[OK]   All dependencies installed (including Ontolearn/CELOE)
+[OK]   Package installed (xai-mini command available)
+=== Verifying Ontolearn / CELOE ===
+[OK]   Ontolearn available — CELOE will be used for explanations
+=== Checking dataset files ===
+[OK]   data/aifb/aifbfixed_complete.n3
+[OK]   data/aifb/trainingSet.tsv
+...
+=== Running full pipeline (analyze + train + explain) ===
+  This takes ~1–2 minutes on CPU.
+epoch=025 loss=0.007 train_acc=0.986 test_acc=0.944 ...
+Early stopping at epoch 47 with best_val_f1=0.889
+=== Verifying results ===
+[OK]   Test accuracy = 0.944  (expected ~94.4%)
+[OK]   Test macro-F1 = 0.912  (expected ~0.912)
+[OK]   Explanation results: 4 classes explained
+════════════════════════════════════════
+  Passed : 15 / Failed : 0 — All checks passed.
+════════════════════════════════════════
+```
+
+Or run the pipeline manually:
 
 ```bash
 xai-mini --config configs/aifb.yaml run-all
@@ -269,25 +302,25 @@ Features are sorted by (F1 desc, precision desc, recall desc) and the top 3 are 
 
 ```
 aifb.n3 ──────────────────────────────────────────────────────────────┐
-                                                                       │
+                                                                      │
      Stage 1           Stage 2            Stage 3                     │
   Build Graph  →  Extract Features  →  Split Val/Fit                  │
   2835 nodes        [2835×4017]          fit=119                      │
   40676 edges       multi-hot            val=21                       │
   44 relations                           test=36 (held out)           │
-       │                  │                                            │
-       └──────────────────┘                                            │
-                 │                                                     │
-              Stage 4                                                  │
-          R-GCN Training                                               │
-          Linear(4017→64)                                              │
-          RGCNLayer(64→128)                                            │
-          RGCNLayer(128→128) + residual                                │
-          Linear(128→4) → logits                                       │
-          Early stop @ epoch 25                                        │
-          test acc = 94.4%                                             │
-                 │                                                     │
-          predictions.csv  ←────────────────────────────── aifb.n3 ───┘
+       │                  │                                           │
+       └──────────────────┘                                           │
+                 │                                                    │
+              Stage 4                                                 │
+          R-GCN Training                                              │
+          Linear(4017→64)                                             │
+          RGCNLayer(64→128)                                           │
+          RGCNLayer(128→128) + residual                               │
+          Linear(128→4) → logits                                      │
+          Early stop @ epoch 25                                       │
+          test acc = 94.4%                                            │
+                 │                                                    │
+          predictions.csv  <────────────────────────────── aifb.n3 ───┘
           (176 persons,                                        │
            pred_label + confidence)                            │
                  │                                             │
@@ -299,7 +332,7 @@ aifb.n3 ────────────────────────
                  │                                             │
               Stage 6                                          │
        Baseline Concept Learner                                │
-       neighbourhood_features() ←────────────────────────────┘
+       neighbourhood_features() <──────────────────────────────┘
        score each feature by F1
        return top-3 per class
                  │

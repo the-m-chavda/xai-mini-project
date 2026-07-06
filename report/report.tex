@@ -288,62 +288,61 @@ The top-$k=3$ concepts per class are returned.
 
 \subsection{Explanation Results}
 
-Table~\ref{tab:explanations} summarises the best hypothesis found per research group,
-using the neighbourhood-feature baseline explainer.
+Table~\ref{tab:explanations} summarises the best hypothesis found per research group
+by the CELOE concept learner (Ontolearn).
 
 \begin{table}[ht]
 \centering
-\caption{Top explanation hypotheses per research group (baseline explainer).}
+\caption{Top explanation hypotheses per research group (CELOE / Ontolearn).}
 \label{tab:explanations}
-\begin{tabular}{p{3.8cm}p{5.2cm}ccc}
+\begin{tabular}{p{3.8cm}p{6.5cm}c}
 \toprule
-\textbf{Research Group} & \textbf{Concept} & \textbf{F1} & \textbf{Prec.} & \textbf{Rec.} \\
+\textbf{Research Group} & \textbf{Best DL Concept} & \textbf{F1} \\
 \midrule
 Business Info.\ \& Comm.\ Systems
-  & \textsc{HasLiteral}(\textit{fax})
-  & 0.500 & 0.333 & 1.000 \\
+  & $\forall\,\mathit{member}^{-}.(\neg\mathit{Project})$
+  & \textbf{0.646} \\
 Efficient Algorithms
-  & \textsc{Exists}(\textit{worksAtProject}, \textit{Project})
-  & 0.493 & 0.391 & 0.667 \\
+  & ${\leq}\,6\;\mathit{publication}.(\neg\mathit{InProceedings})$
+  & 0.436 \\
 Knowledge Management
-  & \textsc{Exists}(\textit{publication}, \textit{TechnicalReport})
-  & \textbf{0.675} & \textbf{0.675} & \textbf{0.675} \\
+  & $\neg\mathit{Lecturer}$
+  & 0.510 \\
 Complexity Management
-  & \textsc{Exists}$^{-1}$(\textit{member}, \textit{ResearchGroup})
-  & 0.462 & 0.316 & 0.857 \\
+  & ${\leq}\,5\;\mathit{publication}.(\neg\mathit{InProceedings})$
+  & 0.321 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Qualitative Analysis}
 
-\textbf{Knowledge Management} achieves the highest concept quality ($F_1 = 0.675$):
+\textbf{Business Information \& Communication Systems} achieves the highest concept
+quality ($F_1 = 0.646$):
 \begin{quote}
-$\exists\,\textit{publication}.\,\textit{TechnicalReport}$
+$\forall\,\mathit{member}^{-}.(\neg\mathit{Project})$
 \end{quote}
-This reads as \emph{``a person who has authored at least one TechnicalReport.''}
-It is semantically plausible: the Knowledge Management group focuses on applied systems and
-documentation, which tends to produce technical reports rather than conference papers.
-The second-ranked concept (exists$^{-1}$(\textit{author}, \textit{TechnicalReport})) captures the
-same pattern from the inverse direction, confirming its robustness.
+This reads as \emph{``all entities that are members of this person are not Projects.''}
+It is structurally meaningful: Business Information researchers tend not to appear as
+members of Project nodes in the KG, distinguishing them from research-project-focused groups.
 
-\textbf{Efficient Algorithms} is characterised by project participation:
-\begin{quote}
-$\exists\,\textit{worksAtProject}.\,\textit{Project}$
-\end{quote}
-Members of this algorithmics-focused group are researchers working on funded projects,
-which aligns with the applied, grant-driven nature of the group.
+\textbf{Knowledge Management} is characterised by the concept $\neg\mathit{Lecturer}$
+($F_1 = 0.510$), meaning members of this group are not classified as Lecturers in the ontology.
+This reflects that Knowledge Management is a research-oriented group whose members hold
+researcher rather than lecturer roles in the AIFB ontology.
 
-\textbf{Business Information} is identified by the presence of a fax literal property.
-This is a weaker, artefact-based pattern (high recall but low precision),
-likely reflecting that a specific subset of AIFB persons---those with older institutional profiles
-including fax numbers---tends to belong to this group.
-With full Ontolearn/CELOE, richer structural concepts would be explored.
+\textbf{Efficient Algorithms} yields the concept
+${\leq}\,6\;\mathit{publication}.(\neg\mathit{InProceedings})$
+($F_1 = 0.436$), a cardinality restriction on non-conference publications.
+Members of this algorithmics group tend to have fewer publications outside the InProceedings
+category, consistent with a focus on conference-driven research output.
 
-\textbf{Complexity Management} has the smallest training set (15 members).
-The best hypothesis---inverse member of a ResearchGroup---achieves recall 0.857
-but precision only 0.316, showing that the minority class remains difficult to
-characterise precisely with a single first-order concept.
+\textbf{Complexity Management} has the smallest positive set (14 members after prediction).
+The best hypothesis ${\leq}\,5\;\mathit{publication}.(\neg\mathit{InProceedings})$
+($F_1 = 0.321$) achieves limited discriminative power, confirming that minority classes
+with few examples remain the hardest to characterise with a single concept.
+CELOE's search space is constrained by the 60-second runtime limit per class;
+increasing this budget or the number of positive examples could yield sharper concepts.
 
 \subsection{Explanation Pipeline}
 
@@ -389,7 +388,7 @@ TechnicalReport authorship for Knowledge Management,
 project participation for Efficient Algorithms,
 and ResearchGroup membership for Complexity Management.
 
-Future work could install the full Ontolearn CELOE engine to search a richer hypothesis space,
+Future work could extend the runtime budget for CELOE to explore a richer hypothesis space,
 experiment with additional RDF datasets (BGS, AM), and explore learned attention weights
 within R-GAT~\cite{busbridge2019} as complementary instance-level explanations.
 

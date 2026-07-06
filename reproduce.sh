@@ -37,17 +37,15 @@ source .venv/bin/activate
 # ── Step 3: Install dependencies ──────────────────────────────────────────────
 step "Installing dependencies"
 pip install --upgrade pip -q
-pip install -r requirements.txt -q && ok "requirements.txt installed"
+pip install -r requirements.txt -q && ok "All dependencies installed (including Ontolearn/CELOE)"
 pip install -e . -q              && ok "Package installed (xai-mini command available)"
 
-# ── Step 4: Install Ontolearn (optional but recommended) ─────────────────────
-step "Installing Ontolearn / CELOE (optional)"
-if pip install -r requirements-ontolearn.txt -q 2>/dev/null && \
-   pip install --no-deps ontolearn==0.10.0 -q 2>/dev/null && \
-   python3 -c "import ontolearn" 2>/dev/null; then
-    ok "Ontolearn installed — CELOE will be used for explanations"
+# ── Step 4: Verify Ontolearn ──────────────────────────────────────────────────
+step "Verifying Ontolearn / CELOE"
+if python3 -c "import ontolearn" 2>/dev/null; then
+    ok "Ontolearn available — CELOE will be used for explanations"
 else
-    echo "  [INFO] Ontolearn not available — fallback baseline explainer will run"
+    echo "  [INFO] Ontolearn import failed — fallback baseline explainer will run"
 fi
 
 # ── Step 5: Verify data files ────────────────────────────────────────────────
