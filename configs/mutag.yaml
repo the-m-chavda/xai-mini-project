@@ -1,0 +1,51 @@
+project:
+  name: xai26-strategy3-mutag
+  seed: 42
+  artifacts_dir: /data/mchavda/xai_miniproject/artifacts/mutag
+
+dataset:
+  name: mutag
+  rdf_path: /data/mchavda/xai_miniproject/datasets/mutag/mutag_stripped.nt
+  rdf_format: nt
+  train_path: /data/mchavda/xai_miniproject/datasets/mutag/trainingSet.tsv
+  test_path: /data/mchavda/xai_miniproject/datasets/mutag/testSet.tsv
+  all_labels_path: /data/mchavda/xai_miniproject/datasets/mutag/completeDataset.tsv
+  entity_column: bond
+  label_column: label_mutagenic
+  target_node_type: http://dl-learner.org/carcinogenesis#Compound
+  label_names:
+    "0": Non-mutagenic
+    "1": Mutagenic
+  exclude_predicates:
+    - http://dl-learner.org/carcinogenesis#isMutagenic
+  include_literal_nodes: true
+  add_inverse_edges: true
+
+model:
+  name: rgcn
+  initial_features: rdf_types
+  embedding_dim: 64
+  hidden_dim: 64
+  dropout: 0.35
+  epochs: 250
+  learning_rate: 0.005
+  weight_decay: 0.001
+  validation_fraction: 0.2
+  early_stopping_patience: 50
+  log_every: 25
+  device: auto
+
+explanation:
+  learner: CELOE
+  backend: ontolearn
+  fallback_baseline: true
+  target_classes: all
+  example_source: predictions
+  example_split: all
+  max_positive_examples: 80
+  max_negative_examples: 80
+  random_seed: 42
+  max_runtime_seconds: 60
+  top_k: 3
+  ontology_output: /data/mchavda/xai_miniproject/artifacts/mutag/mutag_without_labels.owl
+  examples_output: /data/mchavda/xai_miniproject/artifacts/mutag/learning_problems.json

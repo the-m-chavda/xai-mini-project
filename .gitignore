@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.zip
+.pytest_cache/
+.ruff_cache/
+artifacts/
+logs/
+.matplotlib-cache/
+.vscode/
+*.egg-info/
+.DS_Store
